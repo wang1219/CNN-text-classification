@@ -24,9 +24,10 @@ logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=lo
 
 # Data loading params
 tf.flags.DEFINE_float("dev_sample_percentage", .1, "Percentage of the training data to use for validation")
-tf.flags.DEFINE_string("positive_data_file", "./data/val.txt", "Data source for the positive data.")
-tf.flags.DEFINE_string("negative_data_file", "./data/rt-polaritydata/rt-polarity.neg",
-                       "Data source for the negative data.")
+tf.flags.DEFINE_string("train_data_file", "./data/train.txt", "Data source for the train data.")
+tf.flags.DEFINE_string("dev_data_file", "./data/val.txt", "Data source for the val data.")
+tf.flags.DEFINE_string("test_data_file", "./data/test.txt", "Data source for the test data.")
+tf.flags.DEFINE_string("stopwords_file", "./data/stopwords.txt", "Data source for the stopwords data.")
 
 # Model Hyperparameters
 tf.flags.DEFINE_integer("embedding_dim", 128, "Dimensionality of character embedding (default: 128)")
@@ -57,7 +58,7 @@ print("")
 
 # Load data
 print("Loading data...")
-x_text, y = data_helpers.load_data_and_labels(FLAGS.positive_data_file)
+x_text, y = data_helpers.load_data_and_labels(FLAGS.test_data_file, FLAGS.stopwords_file)
 print('x_text', x_text)
 print('y', y)
 

@@ -2,6 +2,7 @@
 #
 import jieba
 import numpy as np
+from gensim.models import word2vec
 
 
 def get_stop_words(filename):
@@ -39,21 +40,25 @@ def write_config(filename, data):
 
 
 label_dict = {
-    '汽车': [1, 0],
-    '财经': [0, 1]
+    '汽车': [1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    '财经': [0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+    '科技': [0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+    '时尚': [0, 0, 0, 1, 0, 0, 0, 0, 0, 0],
+    '文化': [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+    '教育': [0, 0, 0, 0, 0, 1, 0, 0, 0, 0],
+    '娱乐': [0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+    '军事': [0, 0, 0, 0, 0, 0, 0, 1, 0, 0],
+    '健康': [0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+    '体育': [0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
 }
 
 
-def load_data_and_labels(data_file):
-    """
-    Loads MR polarity data from files, splits the data into words and generates labels.
-    Returns split sentences and labels.
-    """
+def load_data_and_labels(data_file, stopwords_file):
     # Load data from files
     labels_data = read_config(data_file)
     labels = []
     x_text = []
-    stopwords = get_stop_words('./data/stopwords')
+    stopwords = get_stop_words(stopwords_file)
     for label, contents in labels_data.items():
         for doc in contents:
             labels.append(label)
@@ -66,6 +71,20 @@ def load_data_and_labels(data_file):
     all_labels = [label_dict[label] for label in labels]
     y = np.concatenate([all_labels], 0)
     return [x_text, y]
+
+
+def word_to_vectors(x_text, size, window, min_count):
+    model = word2vec.Word2Vec(x_text, size=size, window=window, min_count=min_count)
+    vocab = list(model.wv.vocab.keys())
+    vector_size = len(vocab)
+    word_vectors = {}
+    for word in vocab:
+        try:
+            word_vectors[word] = model[word]
+        except:
+            print('word', word)
+            word_vectors[word] = np.random.uniform(-1.0, 1.0, size).astype(np.float32)
+    return word_vectors
 
 
 def batch_iter(data, batch_size, num_epochs, shuffle=True):
