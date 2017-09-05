@@ -1,0 +1,3 @@
+model_checkpoint_path: "/Users/wangyangyang/shahuhuerhao_pro/CNN-text-classification/runs/1504633578/checkpoints/model-200"
+all_model_checkpoint_paths: "/Users/wangyangyang/shahuhuerhao_pro/CNN-text-classification/runs/1504633578/checkpoints/model-100"
+all_model_checkpoint_paths: "/Users/wangyangyang/shahuhuerhao_pro/CNN-text-classification/runs/1504633578/checkpoints/model-200"

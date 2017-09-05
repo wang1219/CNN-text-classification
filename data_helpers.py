@@ -63,7 +63,7 @@ def load_data_and_labels(data_file, stopwords_file):
         for doc in contents:
             labels.append(label)
             doc = jieba.cut(doc, cut_all=False)
-            doc = [i.strip() for i in doc if i.replace("\n", "")]
+            doc = [i.replace("\n", "").strip() for i in doc if i.replace("\n", "").strip()]
 
             x_text.append(list(set(doc) - set(stopwords)))
 
@@ -73,18 +73,28 @@ def load_data_and_labels(data_file, stopwords_file):
     return [x_text, y]
 
 
-def word_to_vectors(x_text, size, window, min_count):
+def word_to_vectors(x_text, size, window=5, min_count=1):
     model = word2vec.Word2Vec(x_text, size=size, window=window, min_count=min_count)
     vocab = list(model.wv.vocab.keys())
-    vector_size = len(vocab)
     word_vectors = {}
     for word in vocab:
         try:
             word_vectors[word] = model[word]
         except:
-            print('word', word)
             word_vectors[word] = np.random.uniform(-1.0, 1.0, size).astype(np.float32)
     return word_vectors
+
+
+def get_W(word_vectors, vocab_ids_map, k=100):
+    W = np.random.uniform(-1.0, 1.0, size=[len(word_vectors) + 1, k]).astype(np.float32)
+    for word, vector in word_vectors.items():
+        try:
+            word_id = vocab_ids_map[word]
+        except KeyError:
+            pass
+        else:
+            W[word_id] = vector
+    return W
 
 
 def batch_iter(data, batch_size, num_epochs, shuffle=True):
@@ -93,7 +103,7 @@ def batch_iter(data, batch_size, num_epochs, shuffle=True):
     """
     data = np.array(data)
     data_size = len(data)
-    num_batches_per_epoch = int((len(data)-1)/batch_size) + 1
+    num_batches_per_epoch = int((len(data) - 1) / batch_size) + 1
     for epoch in range(num_epochs):
         # Shuffle the data at each epoch
         if shuffle:

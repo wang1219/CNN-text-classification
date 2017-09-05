@@ -27,10 +27,10 @@ tf.flags.DEFINE_float("dev_sample_percentage", .1, "Percentage of the training d
 tf.flags.DEFINE_string("train_data_file", "./data/train.txt", "Data source for the train data.")
 tf.flags.DEFINE_string("dev_data_file", "./data/val.txt", "Data source for the val data.")
 tf.flags.DEFINE_string("test_data_file", "./data/test.txt", "Data source for the test data.")
-tf.flags.DEFINE_string("stopwords_file", "./data/stopwords.txt", "Data source for the stopwords data.")
+tf.flags.DEFINE_string("stopwords_file", "./data/stopwords", "Data source for the stopwords data.")
 
 # Model Hyperparameters
-tf.flags.DEFINE_integer("embedding_dim", 128, "Dimensionality of character embedding (default: 128)")
+tf.flags.DEFINE_integer("embedding_dim", 2, "Dimensionality of character embedding (default: 128)")
 tf.flags.DEFINE_string("filter_sizes", "3,4,5", "Comma-separated filter sizes (default: '3,4,5')")
 tf.flags.DEFINE_integer("num_filters", 128, "Number of filters per filter size (default: 128)")
 tf.flags.DEFINE_float("dropout_keep_prob", 0.5, "Dropout keep probability (default: 0.5)")
@@ -69,27 +69,13 @@ x = np.array(list(vocab_processor.fit_transform([' '.join(i) for i in x_text])))
 print('x', x)
 
 # 构建模型
-model = word2vec.Word2Vec(x_text, size=FLAGS.embedding_dim, window=5, min_count=1)
-vocab = list(model.wv.vocab.keys())
-vector_size = len(vocab)
-word_vectors = {}
-for word in vocab:
-    try:
-        word_vectors[word] = model[word]
-    except:
-        print('word', word)
-        word_vectors[word] = np.random.uniform(-1.0, 1.0, FLAGS.embedding_dim).astype(np.float32)
+word_vectors = data_helpers.word_to_vectors(x_text, size=FLAGS.embedding_dim, window=5, min_count=1)
+vector_size = len(word_vectors)
 
-print('vector_size', vector_size)
-print('vocab_processor.vocabulary_._mapping', len(vocab_processor.vocabulary_._mapping.keys()))
-
-W = np.random.uniform(-1.0, 1.0, size=[vector_size + 1, FLAGS.embedding_dim]).astype(np.float32)
-print('W', W)
-print('vocab_processor.vocabulary_._mapping', vocab_processor.vocabulary_._mapping)
-for word, vector in word_vectors.items():
-    word_id = vocab_processor.vocabulary_._mapping[word]
-    W[word_id] = vector
-print('W', W)
+# 加载嵌入层的table
+W = data_helpers.get_W(word_vectors=word_vectors,
+                       vocab_ids_map=vocab_processor.vocabulary_._mapping,
+                       k=FLAGS.embedding_dim)
 
 # Randomly shuffle data
 np.random.seed(10)
@@ -110,7 +96,6 @@ print("Vocabulary Size: {:d}".format(len(vocab_processor.vocabulary_)))
 print("Train/Dev split: {:d}/{:d}".format(len(y_train), len(y_dev)))
 print('x_train.shape', x_train.shape)
 print('y_train.shape', y_train.shape)
-
 
 # Training
 # ==================================================
@@ -184,9 +169,6 @@ with tf.Graph().as_default():
             """
             A single training step
             """
-            print('*******')
-            print('x_batch', x_batch, type(x_batch))
-            print('y_batch', y_batch, type(y_batch))
             feed_dict = {
                 cnn.input_x: x_batch,
                 cnn.input_y: y_batch,
@@ -224,9 +206,6 @@ with tf.Graph().as_default():
         # Training loop. For each batch...
         for batch in batches:
             x_batch, y_batch = zip(*batch)
-            print('........................')
-            print('x_batch', x_batch, type(x_batch))
-            print('y_batch', y_batch, type(y_batch))
             train_step(x_batch, y_batch)
             current_step = tf.train.global_step(sess, global_step)
             if current_step % FLAGS.evaluate_every == 0:
@@ -236,3 +215,16 @@ with tf.Graph().as_default():
             if current_step % FLAGS.checkpoint_every == 0:
                 path = saver.save(sess, checkpoint_prefix, global_step=current_step)
                 print("Saved model checkpoint to {}\n".format(path))
+
+        # Test loop
+        # Generate batches for one epoch
+        # batches = data_loader.batch_iter(list(x_test), FLAGS.batch_size, 1, shuffle=False)
+        # # Collect the predictions here
+        # all_predictions = []
+        # for x_test_batch in batches:
+        #     batch_predictions = sess.run(cnn.predictions,
+        #                                  {cnn.input_x: x_test_batch, cnn.dropout_keep_prob: 1.0})
+        #     all_predictions = np.concatenate([all_predictions, batch_predictions])
+        #
+        # correct_predictions = float(sum(
+        #     all_predictions == np.argmax(y_test, axis=1)))
