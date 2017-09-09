@@ -1,21 +1,15 @@
 # -*- coding: utf-8 -*-
 #
-import sys
-import tensorflow as tf
-import numpy as np
 import os
 import time
-import multiprocessing
 import datetime
+import logging
+import tensorflow as tf
+import numpy as np
+
 import data_helpers
 from text_cnn import TextCNN
 from tensorflow.contrib import learn
-
-import multiprocessing
-
-from gensim.models import word2vec
-
-import gensim, logging
 
 logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
 
@@ -26,7 +20,6 @@ logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=lo
 tf.flags.DEFINE_float("dev_sample_percentage", .1, "Percentage of the training data to use for validation")
 tf.flags.DEFINE_string("train_data_file", "./data/train.txt", "Data source for the train data.")
 tf.flags.DEFINE_string("dev_data_file", "./data/val.txt", "Data source for the val data.")
-tf.flags.DEFINE_string("test_data_file", "./data/test.txt", "Data source for the test data.")
 tf.flags.DEFINE_string("stopwords_file", "./data/stopwords", "Data source for the stopwords data.")
 
 # Model Hyperparameters
@@ -58,7 +51,7 @@ print("")
 
 # Load data
 print("Loading data...")
-x_text, y = data_helpers.load_data_and_labels(FLAGS.test_data_file, FLAGS.stopwords_file)
+x_text, y = data_helpers.load_data_and_labels(FLAGS.dev_data_file, FLAGS.stopwords_file)
 print('x_text', x_text)
 print('y', y)
 
@@ -89,7 +82,7 @@ print('y_shuffled', y_shuffled, len(y_shuffled))
 # Split train/test set
 # TODO: This is very crude, should use cross-validation
 dev_sample_index = -1 * int(FLAGS.dev_sample_percentage * float(len(y)))
-dev_sample_index = -1
+dev_sample_index = -1 if dev_sample_index == 0 else dev_sample_index
 x_train, x_dev = x_shuffled[:dev_sample_index], x_shuffled[dev_sample_index:]
 y_train, y_dev = y_shuffled[:dev_sample_index], y_shuffled[dev_sample_index:]
 print("Vocabulary Size: {:d}".format(len(vocab_processor.vocabulary_)))
@@ -159,7 +152,7 @@ with tf.Graph().as_default():
         saver = tf.train.Saver(tf.global_variables(), max_to_keep=FLAGS.num_checkpoints)
 
         # Write vocabulary
-        # vocab_processor.save(os.path.join(out_dir, "vocab"))
+        vocab_processor.save(os.path.join(out_dir, "vocab"))
 
         # Initialize all variables
         sess.run(tf.global_variables_initializer())
@@ -215,16 +208,3 @@ with tf.Graph().as_default():
             if current_step % FLAGS.checkpoint_every == 0:
                 path = saver.save(sess, checkpoint_prefix, global_step=current_step)
                 print("Saved model checkpoint to {}\n".format(path))
-
-        # Test loop
-        # Generate batches for one epoch
-        # batches = data_loader.batch_iter(list(x_test), FLAGS.batch_size, 1, shuffle=False)
-        # # Collect the predictions here
-        # all_predictions = []
-        # for x_test_batch in batches:
-        #     batch_predictions = sess.run(cnn.predictions,
-        #                                  {cnn.input_x: x_test_batch, cnn.dropout_keep_prob: 1.0})
-        #     all_predictions = np.concatenate([all_predictions, batch_predictions])
-        #
-        # correct_predictions = float(sum(
-        #     all_predictions == np.argmax(y_test, axis=1)))
