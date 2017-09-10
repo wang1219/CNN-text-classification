@@ -10,7 +10,7 @@
 $ cd /path/to/notification
 $ virtualenv -p python3.5 .venv
 $ source .venv/bin/activate
-$ pip install -r requirements -i http://pypi.doubanio.com/simple/
+$ pip install -r requirements.txt -i http://pypi.doubanio.com/simple/ --trusted-host pypi.doubanio.com
 ````
 
 ## Training

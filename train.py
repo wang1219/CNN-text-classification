@@ -11,7 +11,20 @@ import data_helpers
 from text_cnn import TextCNN
 from tensorflow.contrib import learn
 
-logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
+DEBUG = False
+
+if DEBUG:
+    logging.basicConfig(
+        format='%(asctime)s : %(levelname)s : %(message)s',
+        level=logging.INFO)
+else:
+    log_file = './logs/train.log'
+    logging.basicConfig(
+        filename=log_file,
+        format='%(asctime)s : %(levelname)s : %(message)s',
+        level=logging.INFO)
+
+LOG = logging.getLogger(__name__)
 
 # Parameters
 # ==================================================
@@ -23,7 +36,7 @@ tf.flags.DEFINE_string("dev_data_file", "./data/val.txt", "Data source for the v
 tf.flags.DEFINE_string("stopwords_file", "./data/stopwords", "Data source for the stopwords data.")
 
 # Model Hyperparameters
-tf.flags.DEFINE_integer("embedding_dim", 2, "Dimensionality of character embedding (default: 128)")
+tf.flags.DEFINE_integer("embedding_dim", 128, "Dimensionality of character embedding (default: 128)")
 tf.flags.DEFINE_string("filter_sizes", "3,4,5", "Comma-separated filter sizes (default: '3,4,5')")
 tf.flags.DEFINE_integer("num_filters", 128, "Number of filters per filter size (default: 128)")
 tf.flags.DEFINE_float("dropout_keep_prob", 0.5, "Dropout keep probability (default: 0.5)")
@@ -41,25 +54,25 @@ tf.flags.DEFINE_boolean("log_device_placement", False, "Log placement of ops on 
 
 FLAGS = tf.flags.FLAGS
 FLAGS._parse_flags()
-print("\nParameters:")
+LOG.info("\nParameters:")
 for attr, value in sorted(FLAGS.__flags.items()):
-    print("{}={}".format(attr.upper(), value))
-print("")
+    LOG.info("{}={}".format(attr.upper(), value))
+LOG.info("")
 
 # Data Preparation
 # ==================================================
 
 # Load data
-print("Loading data...")
-x_text, y = data_helpers.load_data_and_labels(FLAGS.dev_data_file, FLAGS.stopwords_file)
-print('x_text', x_text)
-print('y', y)
+LOG.info("Loading data...")
+x_text, y = data_helpers.load_data_and_labels(FLAGS.train_data_file, FLAGS.stopwords_file)
+# LOG.info('x_text', x_text)
+# LOG.info('y', y)
 
 # Build vocabulary
 max_document_length = max([len(x) for x in x_text])
 vocab_processor = learn.preprocessing.VocabularyProcessor(max_document_length)
 x = np.array(list(vocab_processor.fit_transform([' '.join(i) for i in x_text])))
-print('x', x)
+# LOG.info('x', x)
 
 # 构建模型
 word_vectors = data_helpers.word_to_vectors(x_text, size=FLAGS.embedding_dim, window=5, min_count=1)
@@ -73,11 +86,11 @@ W = data_helpers.get_W(word_vectors=word_vectors,
 # Randomly shuffle data
 np.random.seed(10)
 shuffle_indices = np.random.permutation(np.arange(len(y)))
-print('shuffle_indices', shuffle_indices)
+# print('shuffle_indices', shuffle_indices)
 x_shuffled = x[shuffle_indices]
 y_shuffled = y[shuffle_indices]
-print('x_shuffled', x_shuffled, len(x_shuffled))
-print('y_shuffled', y_shuffled, len(y_shuffled))
+# print('x_shuffled', x_shuffled, len(x_shuffled))
+# print('y_shuffled', y_shuffled, len(y_shuffled))
 
 # Split train/test set
 # TODO: This is very crude, should use cross-validation
@@ -85,10 +98,10 @@ dev_sample_index = -1 * int(FLAGS.dev_sample_percentage * float(len(y)))
 dev_sample_index = -1 if dev_sample_index == 0 else dev_sample_index
 x_train, x_dev = x_shuffled[:dev_sample_index], x_shuffled[dev_sample_index:]
 y_train, y_dev = y_shuffled[:dev_sample_index], y_shuffled[dev_sample_index:]
-print("Vocabulary Size: {:d}".format(len(vocab_processor.vocabulary_)))
-print("Train/Dev split: {:d}/{:d}".format(len(y_train), len(y_dev)))
-print('x_train.shape', x_train.shape)
-print('y_train.shape', y_train.shape)
+LOG.info("Vocabulary Size: {:d}".format(len(vocab_processor.vocabulary_)))
+LOG.info("Train/Dev split: {:d}/{:d}".format(len(y_train), len(y_dev)))
+# print('x_train.shape', x_train.shape)
+# print('y_train.shape', y_train.shape)
 
 # Training
 # ==================================================
@@ -128,7 +141,7 @@ with tf.Graph().as_default():
         # Output directory for models and summaries
         timestamp = str(int(time.time()))
         out_dir = os.path.abspath(os.path.join(os.path.curdir, "runs", timestamp))
-        print("Writing to {}\n".format(out_dir))
+        LOG.info("Writing to {}\n".format(out_dir))
 
         # Summaries for loss and accuracy
         loss_summary = tf.summary.scalar("loss", cnn.loss)
@@ -171,7 +184,7 @@ with tf.Graph().as_default():
                 [train_op, global_step, train_summary_op, cnn.loss, cnn.accuracy],
                 feed_dict)
             time_str = datetime.datetime.now().isoformat()
-            print("{}: step {}, loss {:g}, acc {:g}".format(time_str, step, loss, accuracy))
+            LOG.info("{}: step {}, loss {:g}, acc {:g}".format(time_str, step, loss, accuracy))
             train_summary_writer.add_summary(summaries, step)
 
 
@@ -188,7 +201,7 @@ with tf.Graph().as_default():
                 [global_step, dev_summary_op, cnn.loss, cnn.accuracy],
                 feed_dict)
             time_str = datetime.datetime.now().isoformat()
-            print("{}: step {}, loss {:g}, acc {:g}".format(time_str, step, loss, accuracy))
+            LOG.info("{}: step {}, loss {:g}, acc {:g}".format(time_str, step, loss, accuracy))
             if writer:
                 writer.add_summary(summaries, step)
 
@@ -202,9 +215,9 @@ with tf.Graph().as_default():
             train_step(x_batch, y_batch)
             current_step = tf.train.global_step(sess, global_step)
             if current_step % FLAGS.evaluate_every == 0:
-                print("\nEvaluation:")
+                LOG.info("\nEvaluation:")
                 dev_step(x_dev, y_dev, writer=dev_summary_writer)
-                print("")
+                LOG.info("")
             if current_step % FLAGS.checkpoint_every == 0:
                 path = saver.save(sess, checkpoint_prefix, global_step=current_step)
-                print("Saved model checkpoint to {}\n".format(path))
+                LOG.info("Saved model checkpoint to {}\n".format(path))
